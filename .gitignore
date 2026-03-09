@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+.env.local
+*.log
+
+# Firebase service account credentials — never commit
+*-firebase-adminsdk-*.json

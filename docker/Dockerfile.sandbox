@@ -1,0 +1,19 @@
+FROM alpine:3.19
+
+# Install GCC, G++, and standard C++ library
+RUN apk add --no-cache g++ libstdc++
+
+# Create a non-root user for running code
+RUN adduser -D -s /bin/sh runner
+
+# Copy execution script
+COPY run.sh /usr/local/bin/run.sh
+RUN chmod +x /usr/local/bin/run.sh
+
+# Working directory for code execution
+WORKDIR /workspace
+
+# Drop to non-root user
+USER runner
+
+ENTRYPOINT ["/usr/local/bin/run.sh"]
