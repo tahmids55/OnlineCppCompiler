@@ -83,7 +83,7 @@ A browser-based competitive programming IDE where users can write, compile, and 
 │   ├── run.sh                  # Compile & execute script
 │   └── entrypoint.sh           # Backend container entrypoint
 ├── docker-compose.yml
-├── render.yaml                 # Render deployment config
+├── railway.toml                # Railway backend service config
 └── README.md
 ```
 
@@ -285,33 +285,84 @@ Every code execution runs in a Docker container with:
 - Guest users can only run code — no persistence
 - Authenticated users get full save/load access
 
-## Deployment on Render
+## Deployment on Railway
 
-### Option 1: Using render.yaml (Blueprint)
+### Services overview
 
-1. Push repo to GitHub
-2. Go to [Render Dashboard](https://dashboard.render.com)
-3. Click "New" → "Blueprint"
-4. Connect your repo
-5. Render auto-detects `render.yaml` and creates services
-6. Set environment variables in the Render dashboard
+This app deploys as **two Railway services** from one GitHub repo:
 
-### Option 2: Manual Setup
+| Service | Type | Root Dir | Dockerfile |
+|---|---|---|---|
+| `cpworkspace-backend` | Docker | `.` (repo root) | `backend/Dockerfile` |
+| `cpworkspace-frontend` | Docker | `frontend/` | `frontend/Dockerfile` |
 
-**Backend:**
-1. New → Web Service → Docker
-2. Set Docker file path: `backend/Dockerfile`
-3. Set Docker context: `.` (root)
-4. Add env vars: `PORT=8080`, `FIREBASE_CREDENTIALS_JSON=...`, `ALLOWED_ORIGINS=...`
+> **Important:** The backend uses Docker-in-Docker to run sandboxed code. Railway supports this on paid plans with privileged container access. Enable it in the service settings under **Settings → Deploy → Privileged**.
 
-**Frontend:**  
-1. New → Static Site
-2. Build command: `cd frontend && npm ci && npm run build`
-3. Publish directory: `frontend/dist`
-4. Add env vars for Firebase config
-5. Add rewrite rule: `/api/*` → `https://your-backend.onrender.com/api/*`
+### Step-by-step
 
-> **Note:** Render free tier has Docker support but may have limitations with Docker-in-Docker. For production, consider a VPS with full Docker access (DigitalOcean, Hetzner, or AWS EC2).
+#### 1. Create a Railway project
+
+1. Go to [Railway Dashboard](https://railway.app)
+2. Click **New Project** → **Deploy from GitHub repo**
+3. Connect your GitHub account and select this repo
+
+#### 2. Set up the Backend service
+
+1. Railway creates a service automatically — rename it to `cpworkspace-backend`
+2. Go to **Settings → Build**:
+   - **Root Directory**: `.` (leave empty or set to `/`)
+   - Railway auto-detects `railway.toml` at the root
+3. Go to **Settings → Deploy** → enable **Privileged** (required for Docker-in-Docker)
+4. Go to **Variables** and add:
+
+```
+PORT=8080
+FIREBASE_CREDENTIALS_JSON=<paste full contents of your service account JSON>
+ALLOWED_ORIGINS=https://cpworkspace-frontend.up.railway.app
+```
+
+> Replace `cpworkspace-frontend.up.railway.app` with your actual frontend Railway URL after it's deployed.
+
+#### 3. Set up the Frontend service
+
+1. In the same project, click **New Service** → **GitHub Repo** → same repo
+2. Rename it to `cpworkspace-frontend`
+3. Go to **Settings → Build**:
+   - **Root Directory**: `frontend`
+   - Railway auto-detects `frontend/railway.toml`
+4. Go to **Variables** and add:
+
+```
+VITE_FIREBASE_API_KEY=AIzaSy...
+VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your-project
+VITE_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=123456789
+VITE_FIREBASE_APP_ID=1:123456789:web:abc123
+VITE_FIREBASE_MEASUREMENT_ID=G-XXXXXXXXXX
+VITE_API_URL=https://cpworkspace-backend.up.railway.app
+```
+
+> Set `VITE_API_URL` to your backend Railway service URL (found in backend service → Settings → Networking → Public Domain).
+
+#### 4. Update CORS on backend
+
+Once the frontend is deployed, copy its public URL and update the backend `ALLOWED_ORIGINS` variable:
+
+```
+ALLOWED_ORIGINS=https://cpworkspace-frontend.up.railway.app
+```
+
+#### 5. Add Firebase authorized domain
+
+In Firebase Console → Authentication → Settings → Authorized domains, add your Railway frontend domain:
+```
+cpworkspace-frontend.up.railway.app
+```
+
+#### 6. Deploy
+
+Both services deploy automatically on every push to `main`. You can also trigger manual deploys from the Railway dashboard.
 
 ## Testing
 
