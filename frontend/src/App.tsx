@@ -11,6 +11,8 @@ import type { RunResult } from './types';
 
 const MIN_PANEL_PCT = 15;
 const MAX_PANEL_PCT = 85;
+const MIN_FONT = 10;
+const MAX_FONT = 32;
 
 export default function App() {
   const { user } = useAuth();
@@ -31,6 +33,7 @@ export default function App() {
   // UI state
   const [statusMessage, setStatusMessage] = useState('');
   const [fetchError, setFetchError] = useState('');
+  const [fontSize, setFontSize] = useState(14);
 
   // Panel sizes (percentages)
   const [leftWidthPct, setLeftWidthPct] = useState(60);  // main.cpp width %
@@ -74,7 +77,18 @@ export default function App() {
     };
   }, [onMouseMove, onMouseUp]);
 
-
+  // ── Ctrl+Scroll font size ────────────────────────────────────────────────
+  useEffect(() => {
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        const delta = e.deltaY < 0 ? 1 : -1;
+        setFontSize(prev => Math.max(MIN_FONT, Math.min(MAX_FONT, prev + delta)));
+      }
+    };
+    window.addEventListener('wheel', handleWheel, { passive: false, capture: true });
+    return () => window.removeEventListener('wheel', handleWheel, { capture: true });
+  }, []);
 
   // Load workspace when user signs in
   useEffect(() => {
