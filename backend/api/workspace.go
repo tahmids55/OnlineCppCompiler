@@ -10,12 +10,12 @@ import (
 
 // TemplateData represents a saved template
 type TemplateData struct {
-	Code string `json:"code" binding:"required"`
+	Code string `json:"code"`
 }
 
 // WorkspaceData represents a saved workspace
 type WorkspaceData struct {
-	MainCpp  string `json:"main_cpp" binding:"required"`
+	MainCpp  string `json:"main_cpp"`
 	InputTxt string `json:"input_txt"`
 }
 

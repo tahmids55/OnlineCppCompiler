@@ -3,14 +3,19 @@ import { getIdToken } from './firebase';
 import type { RunRequest, RunResult, TemplateData, WorkspaceData } from '../types';
 
 async function authHeaders(): Promise<Record<string, string>> {
-  const token = await getIdToken();
+  let token: string | null = null;
+  try {
+    token = await getIdToken();
+  } catch {
+    throw new Error('Authentication error — try signing out and back in');
+  }
   if (token) {
     return {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
     };
   }
-  return { 'Content-Type': 'application/json' };
+  throw new Error('Not signed in — please sign in first');
 }
 
 // POST /api/run — public endpoint

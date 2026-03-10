@@ -33,27 +33,27 @@ export default function App() {
   const [fetchError, setFetchError] = useState('');
 
   // Panel sizes (percentages)
-  const [topHeightPct, setTopHeightPct] = useState(60);  // code editor height %
-  const [leftWidthPct, setLeftWidthPct] = useState(50);  // input panel width %
+  const [leftWidthPct, setLeftWidthPct] = useState(60);  // main.cpp width %
+  const [topHeightPct, setTopHeightPct] = useState(50);  // input.txt height % in right column
 
   // Drag state
-  const contentRef = useRef<HTMLDivElement>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);  // full content area (for horizontal drag)
+  const rightRef = useRef<HTMLDivElement>(null);    // right column (for vertical drag)
   const dragging = useRef<'vertical' | 'horizontal' | null>(null);
 
   // ── Draggable dividers ───────────────────────────────────────────────────
   const onMouseMove = useCallback((e: MouseEvent) => {
     if (!dragging.current) return;
     e.preventDefault();
-    if (dragging.current === 'vertical' && contentRef.current) {
+    if (dragging.current === 'horizontal' && contentRef.current) {
       const rect = contentRef.current.getBoundingClientRect();
-      const pct = ((e.clientY - rect.top) / rect.height) * 100;
-      setTopHeightPct(Math.max(MIN_PANEL_PCT, Math.min(MAX_PANEL_PCT, pct)));
-    }
-    if (dragging.current === 'horizontal' && bottomRef.current) {
-      const rect = bottomRef.current.getBoundingClientRect();
       const pct = ((e.clientX - rect.left) / rect.width) * 100;
       setLeftWidthPct(Math.max(MIN_PANEL_PCT, Math.min(MAX_PANEL_PCT, pct)));
+    }
+    if (dragging.current === 'vertical' && rightRef.current) {
+      const rect = rightRef.current.getBoundingClientRect();
+      const pct = ((e.clientY - rect.top) / rect.height) * 100;
+      setTopHeightPct(Math.max(MIN_PANEL_PCT, Math.min(MAX_PANEL_PCT, pct)));
     }
   }, []);
 
@@ -142,7 +142,7 @@ export default function App() {
   const handleSaveTemplate = useCallback(async () => {
     if (!user) return;
     try { await saveTemplate({ code }); showStatus('Template saved'); }
-    catch { showStatus('Failed to save template'); }
+    catch (err) { showStatus(err instanceof Error ? err.message : 'Failed to save template'); }
   }, [code, user]);
 
   const handleLoadTemplate = useCallback(async () => {
@@ -150,13 +150,14 @@ export default function App() {
     try {
       const data = await loadTemplate();
       if (data.code) { setCode(data.code); showStatus('Template loaded'); }
-    } catch { showStatus('No template found'); }
+      else showStatus('Template is empty');
+    } catch (err) { showStatus(err instanceof Error ? err.message : 'No template found'); }
   }, [user]);
 
   const handleSaveWorkspace = useCallback(async () => {
     if (!user) return;
     try { await saveWorkspace({ main_cpp: code, input_txt: input }); showStatus('Workspace saved'); }
-    catch { showStatus('Failed to save workspace'); }
+    catch (err) { showStatus(err instanceof Error ? err.message : 'Failed to save workspace'); }
   }, [code, input, user]);
 
   const handleReset = useCallback(() => {
@@ -203,11 +204,11 @@ export default function App() {
       {/* Header */}
       <Header fileName="main.cpp" />
 
-      {/* Main content area */}
-      <div ref={contentRef} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+      {/* Main content area — left: code editor, right: input + output */}
+      <div ref={contentRef} className="flex-1 flex flex-row min-h-0 overflow-hidden">
 
-        {/* Code editor — top section */}
-        <div style={{ height: `${topHeightPct}%` }} className="min-h-0 overflow-hidden">
+        {/* Left — main.cpp */}
+        <div style={{ width: `${leftWidthPct}%` }} className="min-w-0 overflow-hidden">
           <CodeEditor
             value={code}
             onChange={setCode}
@@ -216,43 +217,43 @@ export default function App() {
           />
         </div>
 
-        {/* ── Vertical drag handle ── */}
+        {/* ── Horizontal drag handle (left ↔ right) ── */}
         <div
-          onMouseDown={startVerticalDrag}
-          className="h-1 shrink-0 bg-[var(--color-border)] hover:bg-[var(--color-accent)] transition-colors duration-150 cursor-row-resize group relative"
+          onMouseDown={startHorizontalDrag}
+          className="w-1 shrink-0 bg-[var(--color-border)] hover:bg-[var(--color-accent)] transition-colors duration-150 cursor-col-resize group relative"
           title="Drag to resize"
         >
-          <div className="absolute inset-x-0 -top-1 -bottom-1" /> {/* wider hit area */}
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-            <span className="w-6 h-0.5 rounded bg-[var(--color-accent)]" />
+          <div className="absolute inset-y-0 -left-1 -right-1" />
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+            <span className="h-6 w-0.5 rounded bg-[var(--color-accent)]" />
           </div>
         </div>
 
-        {/* Bottom section — Input and Output side by side */}
+        {/* Right column — input.txt (top) + output.txt (bottom) */}
         <div
-          ref={bottomRef}
-          className="flex min-h-0 overflow-hidden"
-          style={{ height: `${100 - topHeightPct}%` }}
+          ref={rightRef}
+          className="flex flex-col min-w-0 overflow-hidden"
+          style={{ width: `${100 - leftWidthPct}%` }}
         >
-          {/* Input panel — left */}
-          <div style={{ width: `${leftWidthPct}%` }} className="min-w-0 overflow-hidden">
+          {/* input.txt */}
+          <div style={{ height: `${topHeightPct}%` }} className="min-h-0 overflow-hidden">
             <InputPanel value={input} onChange={setInput} />
           </div>
 
-          {/* ── Horizontal drag handle ── */}
+          {/* ── Vertical drag handle (input ↔ output) ── */}
           <div
-            onMouseDown={startHorizontalDrag}
-            className="w-1 shrink-0 bg-[var(--color-border)] hover:bg-[var(--color-accent)] transition-colors duration-150 cursor-col-resize group relative"
+            onMouseDown={startVerticalDrag}
+            className="h-1 shrink-0 bg-[var(--color-border)] hover:bg-[var(--color-accent)] transition-colors duration-150 cursor-row-resize group relative"
             title="Drag to resize"
           >
-            <div className="absolute inset-y-0 -left-1 -right-1" /> {/* wider hit area */}
-            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-              <span className="h-6 w-0.5 rounded bg-[var(--color-accent)]" />
+            <div className="absolute inset-x-0 -top-1 -bottom-1" />
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+              <span className="w-6 h-0.5 rounded bg-[var(--color-accent)]" />
             </div>
           </div>
 
-          {/* Output panel — right */}
-          <div style={{ width: `${100 - leftWidthPct}%` }} className="min-w-0 overflow-hidden">
+          {/* output.txt */}
+          <div style={{ height: `${100 - topHeightPct}%` }} className="min-h-0 overflow-hidden">
             <OutputPanel
               output={output}
               error={error}
