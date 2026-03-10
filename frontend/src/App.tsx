@@ -74,18 +74,7 @@ export default function App() {
     };
   }, [onMouseMove, onMouseUp]);
 
-  // ── Ctrl+Scroll font size ────────────────────────────────────────────────
-  useEffect(() => {
-    const handleWheel = (e: WheelEvent) => {
-      if (e.ctrlKey || e.metaKey) {
-        e.preventDefault();
-        const delta = e.deltaY < 0 ? 1 : -1;
-        setFontSize(prev => Math.max(MIN_FONT, Math.min(MAX_FONT, prev + delta)));
-      }
-    };
-    window.addEventListener('wheel', handleWheel, { passive: false, capture: true });
-    return () => window.removeEventListener('wheel', handleWheel, { capture: true });
-  }, []);
+
 
   // Load workspace when user signs in
   useEffect(() => {
@@ -130,6 +119,11 @@ export default function App() {
       else if (result.timed_out) showStatus('Time Limit Exceeded');
       else if (result.exit_code === 0) showStatus(`Executed in ${result.execution_time.toFixed(3)}s`);
       else showStatus(`Runtime error (exit code ${result.exit_code})`);
+
+      // Auto-save workspace to Firebase after every run
+      if (user) {
+        saveWorkspace({ main_cpp: code, input_txt: input }).catch(() => {});
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Execution failed';
       setFetchError(message);
@@ -137,7 +131,7 @@ export default function App() {
     } finally {
       setIsRunning(false);
     }
-  }, [code, input, isRunning]);
+  }, [code, input, isRunning, user]);
 
   const handleSaveTemplate = useCallback(async () => {
     if (!user) return;
