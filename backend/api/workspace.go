@@ -1,6 +1,7 @@
 package api
 
 import (
+	"log"
 	"net/http"
 
 	"cpworkspace-backend/auth"
@@ -22,7 +23,6 @@ type WorkspaceData struct {
 // SaveTemplate handles POST /api/save-template
 func SaveTemplate(c *gin.Context) {
 	uid := c.GetString("uid")
-	email := c.GetString("email")
 
 	if auth.FirestoreClient == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Database unavailable"})
@@ -37,22 +37,14 @@ func SaveTemplate(c *gin.Context) {
 
 	ctx := c.Request.Context()
 
-	// Ensure user document exists
-	_, err := auth.FirestoreClient.Collection("users").Doc(uid).Set(ctx, map[string]interface{}{
-		"email": email,
-	})
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save user"})
-		return
-	}
-
 	// Save template
-	_, err = auth.FirestoreClient.Collection("templates").Doc(uid).Set(ctx, map[string]interface{}{
+	_, err := auth.FirestoreClient.Collection("templates").Doc(uid).Set(ctx, map[string]interface{}{
 		"user_id":       uid,
 		"template_code": data.Code,
 	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save template"})
+		log.Printf("SaveTemplate error for uid %s: %v", uid, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save template: " + err.Error()})
 		return
 	}
 
@@ -105,7 +97,8 @@ func SaveWorkspace(c *gin.Context) {
 		"input_txt": data.InputTxt,
 	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save workspace"})
+		log.Printf("SaveWorkspace error for uid %s: %v", uid, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save workspace: " + err.Error()})
 		return
 	}
 
