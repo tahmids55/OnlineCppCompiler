@@ -11,8 +11,6 @@ import type { RunResult } from './types';
 
 const MIN_PANEL_PCT = 15;
 const MAX_PANEL_PCT = 85;
-const MIN_FONT = 10;
-const MAX_FONT = 32;
 
 export default function App() {
   const { user } = useAuth();
@@ -33,7 +31,6 @@ export default function App() {
   // UI state
   const [statusMessage, setStatusMessage] = useState('');
   const [fetchError, setFetchError] = useState('');
-  const [fontSize, setFontSize] = useState(14);
 
   // Panel sizes (percentages)
   const [leftWidthPct, setLeftWidthPct] = useState(60);  // main.cpp width %
@@ -76,19 +73,6 @@ export default function App() {
       window.removeEventListener('mouseup', onMouseUp);
     };
   }, [onMouseMove, onMouseUp]);
-
-  // ── Ctrl+Scroll font size ────────────────────────────────────────────────
-  useEffect(() => {
-    const handleWheel = (e: WheelEvent) => {
-      if (e.ctrlKey || e.metaKey) {
-        e.preventDefault();
-        const delta = e.deltaY < 0 ? 1 : -1;
-        setFontSize(prev => Math.max(MIN_FONT, Math.min(MAX_FONT, prev + delta)));
-      }
-    };
-    window.addEventListener('wheel', handleWheel, { passive: false, capture: true });
-    return () => window.removeEventListener('wheel', handleWheel, { capture: true });
-  }, []);
 
   // Load workspace when user signs in
   useEffect(() => {
@@ -282,7 +266,7 @@ export default function App() {
           <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
           </svg>
-          <span><strong>Backend error:</strong> {fetchError} — make sure the backend server is running on port 8080.</span>
+          <span><strong>Backend error:</strong> {fetchError}</span>
         </div>
       )}
 

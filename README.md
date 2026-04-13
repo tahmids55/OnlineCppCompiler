@@ -19,7 +19,7 @@
 ## ✨ Features
 
 - **Monaco Editor** — same engine as VS Code, with full C++ syntax highlighting, autocomplete, bracket matching, and code folding
-- **Secure sandbox** — every execution runs in an isolated Docker container with no network, 256MB memory cap, 2s timeout, and read-only filesystem
+- **Dual execution modes** — Docker sandbox mode for local/VM setups, and Render-compatible local process mode for managed hosting
 - **Three resizable panels** — `main.cpp`, `input.txt`, and `output.txt` with draggable dividers
 - **Per-panel font zoom** — Ctrl+Scroll inside any panel to resize text independently
 - **Guest mode** — run code instantly, no login needed
@@ -37,7 +37,7 @@
 | Frontend | React 18 · TypeScript · Vite · Tailwind CSS v4 |
 | Editor | Monaco Editor (`@monaco-editor/react`) |
 | Backend | Go 1.22 · Gin framework |
-| Sandbox | Docker · Alpine Linux · GCC/G++ |
+| Execution | Docker sandbox (optional) · Local g++ runner · GCC/G++ |
 | Auth & DB | Firebase Authentication · Firestore |
 
 ---
@@ -52,44 +52,61 @@ Browser (React + Monaco)
 Go Backend (Gin)
   ├─ Rate limiting (10 req/min per IP)
   ├─ Firebase token verification
-  └─ Docker SDK
+  └─ Execution engine (auto: Docker -> local)
         │
         ▼
-Sandbox Container (per request)
-  ├─ --network=none
-  ├─ --memory=256m
-  ├─ --read-only filesystem
-  ├─ 2s execution timeout
-  └─ auto-removed after run
+Code Runner (per request)
+  ├─ Docker container mode (local)
+  ├─ Local process mode (Render)
+  └─ 2s run timeout
 ```
 
 ---
 
 ## 🚀 Quick Start
 
-**Prerequisites:** Docker, Go 1.22+, Node.js 20+, a Firebase project
+**Prerequisites:** Go 1.22+, Node.js 20+, a Firebase project
 
 ```bash
 # 1. Clone
 git clone https://github.com/tahmids55/OnlineCppCompiler.git
 cd OnlineCppCompiler
 
-# 2. Build the sandbox image
-docker build -t cpworkspace-sandbox -f docker/Dockerfile.sandbox docker/
-
-# 3. Configure environment
+# 2. Configure environment
 cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
 # → Fill in Firebase credentials in both files
 
-# 4. Start backend  (terminal 1)
+# Optional: enable Docker sandbox mode locally
+# docker build -t cpworkspace-sandbox -f docker/Dockerfile.sandbox docker/
+# then set EXECUTION_MODE=docker in backend/.env
+
+# 3. Start backend  (terminal 1)
 cd backend && go run .
 
-# 5. Start frontend  (terminal 2)
+# 4. Start frontend  (terminal 2)
 cd frontend && npm install && npm run dev
 ```
 
 Open **http://localhost:5173** — done.
+
+---
+
+## ☁️ Deploy on Render (GitHub Blueprint)
+
+This repo now includes a root-level `render.yaml` for one-click Blueprint deploy.
+
+1. Push these changes to GitHub.
+2. In Render Dashboard, choose **New +** → **Blueprint**.
+3. Connect your GitHub repo and select the branch.
+4. Render will create two services from `render.yaml`:
+  - `cpworkspace-backend` (Docker web service)
+  - `cpworkspace-frontend` (Static site)
+5. During first deploy, provide values for all `sync: false` env vars.
+6. Set frontend `VITE_API_URL` to your backend public URL, for example:
+  - `https://cpworkspace-backend.onrender.com`
+
+The backend is preconfigured with `EXECUTION_MODE=local` for Render.
 
 ---
 
@@ -98,8 +115,10 @@ Open **http://localhost:5173** — done.
 **`backend/.env`**
 ```env
 PORT=8080
-ALLOWED_ORIGINS=http://localhost:5173
+EXECUTION_MODE=auto
+ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
 FIREBASE_CREDENTIALS=../your-service-account.json
+# FIREBASE_CREDENTIALS_JSON={...}
 ```
 
 **`frontend/.env`**
@@ -111,14 +130,14 @@ VITE_FIREBASE_STORAGE_BUCKET=
 VITE_FIREBASE_MESSAGING_SENDER_ID=
 VITE_FIREBASE_APP_ID=
 VITE_FIREBASE_MEASUREMENT_ID=
-VITE_API_URL=          # leave empty — Vite proxies /api/* to :8080
+VITE_API_URL=          # local dev: empty, Render: set backend URL
 ```
 
 ---
 
-## 🔒 Sandbox Security
+## 🔒 Docker Sandbox Security
 
-Every code execution is isolated:
+When `EXECUTION_MODE=docker`, every code execution is isolated:
 
 | Constraint | Value |
 |---|---|
@@ -130,6 +149,8 @@ Every code execution is isolated:
 | Filesystem | Read-only root + tmpfs `/tmp` |
 | Privilege escalation | Blocked (`--no-new-privileges`) |
 | Cleanup | Automatic (`--rm` + temp dir deleted) |
+
+In `EXECUTION_MODE=local` (Render default), execution still uses strict request timeouts, but does not provide container-level isolation.
 
 ---
 
@@ -149,7 +170,7 @@ Every code execution is isolated:
 ├── backend/
 │   ├── api/           # /api/run, /api/save-template, etc.
 │   ├── auth/          # Firebase Admin SDK
-│   ├── execution/     # Docker sandbox engine
+│   ├── execution/     # Docker/local execution engine
 │   ├── middleware/    # Auth + rate limiting
 │   └── main.go
 ├── frontend/
@@ -160,7 +181,9 @@ Every code execution is isolated:
 ├── docker/
 │   ├── Dockerfile.sandbox
 │   └── run.sh            # compile + execute script inside container
-└── docker-compose.yml
+├── render.yaml
+└── backend/Dockerfile.render
+    
 ```
 
 ---

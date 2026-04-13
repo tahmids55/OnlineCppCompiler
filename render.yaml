@@ -1,0 +1,53 @@
+services:
+  - type: web
+    name: cpworkspace-backend
+    runtime: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile.render
+    dockerContext: ./backend
+    healthCheckPath: /health
+    buildFilter:
+      paths:
+        - backend/**
+        - render.yaml
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: EXECUTION_MODE
+        value: local
+      - key: ALLOWED_ORIGINS
+        value: "*"
+      - key: FIREBASE_CREDENTIALS_JSON
+        sync: false
+
+  - type: web
+    name: cpworkspace-frontend
+    runtime: static
+    plan: free
+    buildCommand: cd frontend && npm ci && npm run build
+    staticPublishPath: ./frontend/dist
+    buildFilter:
+      paths:
+        - frontend/**
+        - render.yaml
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        sync: false
+      - key: VITE_FIREBASE_API_KEY
+        sync: false
+      - key: VITE_FIREBASE_AUTH_DOMAIN
+        sync: false
+      - key: VITE_FIREBASE_PROJECT_ID
+        sync: false
+      - key: VITE_FIREBASE_STORAGE_BUCKET
+        sync: false
+      - key: VITE_FIREBASE_MESSAGING_SENDER_ID
+        sync: false
+      - key: VITE_FIREBASE_APP_ID
+        sync: false
+      - key: VITE_FIREBASE_MEASUREMENT_ID
+        sync: false

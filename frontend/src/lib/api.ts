@@ -28,7 +28,7 @@ export async function runCode(req: RunRequest): Promise<RunResult> {
       body: JSON.stringify(req),
     });
   } catch (err) {
-    throw new Error('Cannot connect to backend. Is the server running on port 8080?');
+    throw new Error('Cannot connect to backend. Check VITE_API_URL and backend service status.');
   }
 
   if (!res.ok) {

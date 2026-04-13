@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"strings"
 
 	"cpworkspace-backend/api"
 	"cpworkspace-backend/auth"
@@ -33,12 +34,18 @@ func main() {
 		allowedOrigins = "http://localhost:5173,http://localhost:3000"
 	}
 
-	router.Use(cors.New(cors.Config{
-		AllowOrigins:     splitOrigins(allowedOrigins),
-		AllowMethods:     []string{"GET", "POST", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
-		AllowCredentials: true,
-	}))
+	corsConfig := cors.Config{
+		AllowMethods: []string{"GET", "POST", "OPTIONS"},
+		AllowHeaders: []string{"Origin", "Content-Type", "Authorization"},
+	}
+
+	if allowedOrigins == "*" {
+		corsConfig.AllowAllOrigins = true
+	} else {
+		corsConfig.AllowOrigins = splitOrigins(allowedOrigins)
+	}
+
+	router.Use(cors.New(corsConfig))
 
 	// Rate limiter middleware
 	router.Use(middleware.RateLimiter())
@@ -85,6 +92,7 @@ func splitOrigins(origins string) []string {
 	current := ""
 	for _, ch := range origins {
 		if ch == ',' {
+			current = strings.TrimSpace(current)
 			if current != "" {
 				result = append(result, current)
 			}
@@ -93,6 +101,7 @@ func splitOrigins(origins string) []string {
 			current += string(ch)
 		}
 	}
+	current = strings.TrimSpace(current)
 	if current != "" {
 		result = append(result, current)
 	}
